@@ -27,6 +27,3 @@ class Session(models.Model):
     page = models.PositiveSmallIntegerField(default=1, choices=PAGES)
     feeling = models.PositiveSmallIntegerField(null=True, choices=FEELINGS)
     reason = models.PositiveSmallIntegerField(null=True, choices=REASONS)
-
-    def __str__(self) -> str:
-        return str(self.id)

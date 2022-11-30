@@ -1,3 +1,4 @@
+"""Configure the sessions app"""
 from django.apps import AppConfig
 
 

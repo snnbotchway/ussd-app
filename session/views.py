@@ -10,6 +10,7 @@ from .models import Session
 def index(request) -> JsonResponse:
     """POST request handler"""
     if request.method == "POST":
+        """Convert the request body to json:"""
         json_data = json.loads(request.body)
         user_id = json_data.get("USERID")
         msg_type = json_data.get("MSGTYPE")
@@ -18,8 +19,11 @@ def index(request) -> JsonResponse:
         session_id = json_data.get("SESSIONID")
 
         response_msg_type = True
+
+        """Set initial response"""
         response = "Your selection was invalid, session terminated."
 
+        """Return error message and terminate session on invalid input"""
         if msg_type is False and user_data not in ["1", "2", "3"]:
             session = Session.objects.get(id=session_id)
             session.delete()
@@ -32,14 +36,19 @@ def index(request) -> JsonResponse:
                 }
             )
 
+        """Handle a direct dial"""
         if msg_type is True and user_data.startswith("*920*7868"):
             session = Session.objects.create(id=session_id)
+
+            """Remove main USSD code to get remaining choices"""
             user_data = user_data.replace("*920*7868", "")
 
             if len(user_data) > 0:
+                """If more choices exist, remove the asterisks(*)"""
                 user_data = user_data.replace("*", "")
 
-                if len(user_data) > 2 or len(user_data) < 1:
+                """Return error message if choices are not 1 or 2"""
+                if len(user_data) not in [1, 2]:
                     session.delete()
                     return JsonResponse(
                         {
@@ -49,6 +58,8 @@ def index(request) -> JsonResponse:
                             "MSGTYPE": False,
                         }
                     )
+
+                """Ensure all choices are valid else, return error message."""
                 for choice in user_data:
                     if choice not in ["1", "2", "3"]:
                         session.delete()
@@ -60,26 +71,38 @@ def index(request) -> JsonResponse:
                                 "MSGTYPE": False,
                             }
                         )
+                """Set feeling to first choice:"""
                 session.feeling = user_data[0]
+                """Set session page to 2"""
                 session.page = 2
                 if len(user_data) == 2:
+                    """Set session page to 3 if there is a second choice."""
                     session.page = 3
                 session.save()
 
+        """Get session instance."""
         session = Session.objects.get(id=session_id)
 
         response = ""
 
         if session.page == 1:
+            """If user is at page 1(feeling page)"""
             response = f"Welcome {phone_number}, to Solomon's USSD app!\n"
             response += "How are you feeling?\n"
             response += "1. Not well.\n"
             response += "2. Feeling frisky.\n"
             response += "3. Sad.\n"
+            """Set session page to 2 and save"""
             session.page = 2
             session.save()
 
         elif session.page == 2:
+            """
+            If user is at page 2(reasons page),
+            set reason to user input(user_data) and
+            set page to 3(result page) and
+            and save the instance.
+            """
             session.feeling = user_data
             session.page = 3
             session.save()
@@ -90,7 +113,14 @@ def index(request) -> JsonResponse:
             response += "3. Relationship.\n"
 
         elif session.page == 3:
+            """
+            Handle session when user is at page 3
+            """
             if len(user_data) == 2:
+                """
+                Check if there was a second choice from direct dial and
+                set reason accordingly.
+                """
                 session.reason = user_data[1]
             else:
                 session.reason = user_data
@@ -100,8 +130,10 @@ def index(request) -> JsonResponse:
             response_msg_type = False
 
         if session.page == 3 and response_msg_type is False:
+            """Delete session from the database at the end of session"""
             session.delete()
 
+        """Return Json response with processed information"""
         return JsonResponse(
             {
                 "USERID": user_id,
