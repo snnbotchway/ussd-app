@@ -71,11 +71,11 @@ def index(request) -> JsonResponse:
         response = ""
 
         if session.page == 1:
-            response = f"Welcome {phone_number}, to Solomon's USSD app.\n"
-            response += "How are you feeling?"
-            response += "1. Not well \n"
-            response += "2. Feeling frisky \n"
-            response += "3. Sad  \n"
+            response = f"Welcome {phone_number}, to Solomon's USSD app!\n"
+            response += "How are you feeling?\n"
+            response += "1. Not well.\n"
+            response += "2. Feeling frisky.\n"
+            response += "3. Sad.\n"
             session.page = 2
             session.save()
 
@@ -85,9 +85,9 @@ def index(request) -> JsonResponse:
             session.save()
             session.refresh_from_db()
             response = f"Why are you {session.get_feeling_display()}?\n"
-            response += "1. Health \n"
-            response += "2. Money \n"
-            response += "3. Relationship \n"
+            response += "1. Health.\n"
+            response += "2. Money.\n"
+            response += "3. Relationship.\n"
 
         elif session.page == 3:
             if len(user_data) == 2:
