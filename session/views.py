@@ -21,6 +21,8 @@ def index(request) -> JsonResponse:
         response = "Your selection was invalid, session terminated."
 
         if msg_type is False and user_data not in ["1", "2", "3"]:
+            session = Session.objects.get(id=session_id)
+            session.delete()
             return JsonResponse(
                 {
                     "USERID": user_id,
