@@ -6,6 +6,65 @@ from django.http import JsonResponse
 from .models import Session
 
 
+def page_handler(phone_number, user_data, session_id, response_msg_type):
+    """Handle session based on current page."""
+
+    """Get session instance."""
+    session = Session.objects.get(id=session_id)
+
+    response = ""
+
+    if session.page == 1:
+        """If user is at page 1(feeling page)"""
+        response = f"Welcome {phone_number}, to Solomon's USSD app!\n"
+        response += "How are you feeling?\n"
+        response += "1. Not well.\n"
+        response += "2. Feeling frisky.\n"
+        response += "3. Sad.\n"
+        """Set session page to 2 and save"""
+        session.page = 2
+        session.save()
+
+    elif session.page == 2:
+        """
+        If user is at page 2(reasons page),
+        set reason to user input(user_data) and
+        set page to 3(result page) and
+        and save the instance.
+        """
+        session.feeling = user_data
+        session.page = 3
+        session.save()
+        session.refresh_from_db()
+        response = f"Why are you {session.get_feeling_display()}?\n"
+        response += "1. Health.\n"
+        response += "2. Money.\n"
+        response += "3. Relationship.\n"
+
+    elif session.page == 3:
+        """
+        Handle session when user is at page 3
+        """
+        if len(user_data) == 2:
+            """
+            Check if there was a second choice from direct dial and
+            set reason accordingly.
+            """
+            session.reason = user_data[1]
+        else:
+            session.reason = user_data
+        session.save()
+        session.refresh_from_db()
+        response = f"You are {session.get_feeling_display()} because of {session.get_reason_display()}.\n"  # noqa
+        response_msg_type = False
+
+        if session.page == 3 and response_msg_type is False:
+            """Delete session from the database at the end of session"""
+            session.delete()
+
+    return response_msg_type, response
+
+
 @csrf_exempt
 def index(request) -> JsonResponse:
     """POST request handler"""
@@ -46,6 +105,7 @@ def index(request) -> JsonResponse:
             if len(user_data) > 0:
                 """If more choices exist, remove the asterisks(*)"""
                 user_data = user_data.replace("*", "")
+                print(user_data)
 
                 """Return error message if choices are not 1 or 2"""
                 if len(user_data) not in [1, 2]:
@@ -80,58 +140,12 @@ def index(request) -> JsonResponse:
                     session.page = 3
                 session.save()
 
-        """Get session instance."""
-        session = Session.objects.get(id=session_id)
-
-        response = ""
-
-        if session.page == 1:
-            """If user is at page 1(feeling page)"""
-            response = f"Welcome {phone_number}, to Solomon's USSD app!\n"
-            response += "How are you feeling?\n"
-            response += "1. Not well.\n"
-            response += "2. Feeling frisky.\n"
-            response += "3. Sad.\n"
-            """Set session page to 2 and save"""
-            session.page = 2
-            session.save()
-
-        elif session.page == 2:
-            """
-            If user is at page 2(reasons page),
-            set reason to user input(user_data) and
-            set page to 3(result page) and
-            and save the instance.
-            """
-            session.feeling = user_data
-            session.page = 3
-            session.save()
-            session.refresh_from_db()
-            response = f"Why are you {session.get_feeling_display()}?\n"
-            response += "1. Health.\n"
-            response += "2. Money.\n"
-            response += "3. Relationship.\n"
-
-        elif session.page == 3:
-            """
-            Handle session when user is at page 3
-            """
-            if len(user_data) == 2:
-                """
-                Check if there was a second choice from direct dial and
-                set reason accordingly.
-                """
-                session.reason = user_data[1]
-            else:
-                session.reason = user_data
-            session.save()
-            session.refresh_from_db()
-            response = f"You are {session.get_feeling_display()} because of {session.get_reason_display()}.\n"  # noqa
-            response_msg_type = False
-
-        if session.page == 3 and response_msg_type is False:
-            """Delete session from the database at the end of session"""
-            session.delete()
+        response_msg_type, response = page_handler(
+            phone_number=phone_number,
+            session_id=session_id,
+            user_data=user_data,
+            response_msg_type=response_msg_type,
+        )
 
         """Return Json response with processed information"""
         return JsonResponse(
